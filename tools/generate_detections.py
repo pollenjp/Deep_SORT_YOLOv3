@@ -8,15 +8,22 @@ import tensorflow as tf
 
 
 def _run_in_batches(f, data_dict, out, batch_size):
+    """
+    `data_dict` : dict
+        feed_dict of sess.run (`f`)
+    """
     data_len = len(out)
     num_batches = int(data_len / batch_size)
 
+    # start, end
     s, e = 0, 0
     for i in range(num_batches):
+        # Run for each batch
         s, e = i * batch_size, (i + 1) * batch_size
         batch_data_dict = {k: v[s:e] for k, v in data_dict.items()}
         out[s:e] = f(batch_data_dict)
     if e < len(out):
+        # run rest batch
         batch_data_dict = {k: v[e:] for k, v in data_dict.items()}
         out[e:] = f(batch_data_dict)
 
@@ -48,12 +55,19 @@ def extract_image_patch(image, bbox, patch_shape):
     bbox = np.array(bbox)
     if patch_shape is not None:
         # correct aspect ratio to patch shape
+
+        # width / height
         target_aspect = float(patch_shape[1]) / patch_shape[0]
+
+        # new_bbox_width = (width / height) * bbox_height
         new_width = target_aspect * bbox[3]
+        # TODO : not understand yet
         bbox[0] -= (new_width - bbox[2]) / 2
         bbox[2] = new_width
 
     # convert to top left, bottom right
+    # lop_left = (x, y)
+    # bottom_right = (width + x, height + y)
     bbox[2:] += bbox[:2]
     bbox = bbox.astype(np.int)
 
@@ -62,8 +76,12 @@ def extract_image_patch(image, bbox, patch_shape):
     bbox[2:] = np.minimum(np.asarray(image.shape[:2][::-1]) - 1, bbox[2:])
     if np.any(bbox[:2] >= bbox[2:]):
         return None
+    # start(top_left), end(bottom_right)
     sx, sy, ex, ey = bbox
     image = image[sy:ey, sx:ex]
+
+    # TODO : not understand yet,
+    # I think this should not be inverse patch_shape list order.
     image = cv2.resize(image, tuple(patch_shape[::-1]))
     return image
 
@@ -72,45 +90,86 @@ class ImageEncoder(object):
 
     def __init__(self, checkpoint_filename, input_name="images",
                  output_name="features"):
+        """
+        Parameters
+        ----------
+        checkpoint_filename : str
+            A filepath to a trained model's checkpoint.
+        input_name : str
+            The name scope of input Tensor.
+        output_name : str
+            The name scope of output Tensor
+        """
         self.session = tf.Session()
+        # load deep sort model
         with tf.gfile.GFile(checkpoint_filename, "rb") as file_handle:
             graph_def = tf.GraphDef()
             graph_def.ParseFromString(file_handle.read())
         tf.import_graph_def(graph_def, name="net")
-        self.input_var = tf.get_default_graph().get_tensor_by_name(
-            "net/%s:0" % input_name)
-        self.output_var = tf.get_default_graph().get_tensor_by_name(
-            "net/%s:0" % output_name)
 
+        # deep sort input/output
+        self.input_var = \
+            tf.get_default_graph().get_tensor_by_name("net/%s:0" % input_name)
+        self.output_var = \
+            tf.get_default_graph().get_tensor_by_name("net/%s:0" % output_name)
+
+        # ?
         assert len(self.output_var.get_shape()) == 2
+        # [batch, height, width, channel]
         assert len(self.input_var.get_shape()) == 4
+
+        # feature
         self.feature_dim = self.output_var.get_shape().as_list()[-1]
+        # [height, width, channel]
         self.image_shape = self.input_var.get_shape().as_list()[1:]
 
     def __call__(self, data_x, batch_size=32):
-        out = np.zeros((len(data_x), self.feature_dim), np.float32)
+        """
+        Parameters
+        ----------
+        data_x : numpy.array
+            image patch data. shape=(bbox_num, image_shape).
+        """
+        out = np.zeros(shape=(len(data_x), self.feature_dim), dtype=np.float32)
+        # Run Deep SORT
         _run_in_batches(
-            lambda x: self.session.run(self.output_var, feed_dict=x),
-            {self.input_var: data_x}, out, batch_size)
+            f = lambda x: self.session.run(self.output_var, feed_dict=x),
+            data_dict  = {self.input_var: data_x},
+            #out        = out.view(),  # ポインタ渡しの明示ならこちらのほうがいいのでは?
+            out        = out,
+            batch_size = batch_size)
         return out
 
 
 def create_box_encoder(model_filename, input_name="images",
                        output_name="features", batch_size=32):
+    """
+    Returns
+    -------
+    encoder : func
+        encoder function
+    """
     image_encoder = ImageEncoder(model_filename, input_name, output_name)
     image_shape = image_encoder.image_shape
 
     def encoder(image, boxes):
+        """
+        Parameters
+        ----------
+        image :
+        """
         image_patches = []
         for box in boxes:
-            patch = extract_image_patch(image, box, image_shape[:2])
+            patch = extract_image_patch(image=image,
+                                        bbox=box,
+                                        patch_shape=image_shape[:2])
             if patch is None:
                 print("WARNING: Failed to extract image patch: %s." % str(box))
-                patch = np.random.uniform(
-                    0., 255., image_shape).astype(np.uint8)
+                patch = \
+                    np.random.uniform(0., 255., image_shape).astype(np.uint8)
             image_patches.append(patch)
         image_patches = np.asarray(image_patches)
-        return image_encoder(image_patches, batch_size)
+        return image_encoder(data_x=image_patches, batch_size=batch_size)
 
     return encoder
 

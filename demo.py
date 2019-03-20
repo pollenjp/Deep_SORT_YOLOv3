@@ -22,17 +22,30 @@ warnings.filterwarnings('ignore')
 
 def main(yolo):
 
-   # Definition of the parameters
+    # Definition of the parameters
     max_cosine_distance = 0.3
+
     nn_budget = None
+
+    # nms_max_overlap range : (0, 1]
+    # 1   => Not drop any bounding boxes
+    # 0.5 => スコアの高い`bbox1`の一部に,自身の面積の半分(0.5)以上が含まれている`bbox2`
+    # が存在すれば`bbox2`をdropする.
     nms_max_overlap = 1.0
     
    # deep_sort 
     model_filename = 'model_data/mars-small128.pb'
     encoder = gdet.create_box_encoder(model_filename,batch_size=1)
     
-    metric = nn_matching.NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
-    tracker = Tracker(metric)
+    metric = \
+        nn_matching.NearestNeighborDistanceMetric(
+            metric = "cosine",
+            matching_threshold = max_cosine_distance,
+            budget = nn_budget)
+    tracker = Tracker(metric=metric,
+                      max_iou_distance=0.7,
+                      max_age=30,
+                      n_init=3)
 
     writeVideo_flag = True 
     
@@ -51,21 +64,30 @@ def main(yolo):
     while True:
         ret, frame = video_capture.read()  # frame shape 640*480*3
         if ret != True:
-            break;
+            break
         t1 = time.time()
 
         image = Image.fromarray(frame)
+        # boxs (x,y,w,h)
         boxs = yolo.detect_image(image)
        # print("box_num",len(boxs))
         features = encoder(frame,boxs)
-        
+
         # score to 1.0 here).
-        detections = [Detection(bbox, 1.0, feature) for bbox, feature in zip(boxs, features)]
-        
+        # YOLOv3が認識した物体全て確かなものとして信頼しているということ？
+        detections = [
+            Detection(tlwh=bbox, confidence=1.0, feature=feature)
+            for bbox, feature in zip(boxs, features)
+        ]
+
         # Run non-maxima suppression.
         boxes = np.array([d.tlwh for d in detections])
         scores = np.array([d.confidence for d in detections])
-        indices = preprocessing.non_max_suppression(boxes, nms_max_overlap, scores)
+        # bboxの重なり度合いから選別したbboxのindex (スコアの降順)
+        indices = \
+            preprocessing.non_max_suppression(boxes           =boxes,
+                                              max_bbox_overlap=nms_max_overlap,
+                                              scores          =scores)
         detections = [detections[i] for i in indices]
         
         # Call the tracker

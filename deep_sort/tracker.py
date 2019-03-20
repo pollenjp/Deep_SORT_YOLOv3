@@ -91,8 +91,21 @@ class Tracker:
             np.asarray(features), np.asarray(targets), active_targets)
 
     def _match(self, detections):
+        """
+        """
 
         def gated_metric(tracks, dets, track_indices, detection_indices):
+            """
+                The distance metric is given a list of tracks and detections as well as
+                a list of N track indices and M detection indices. The metric should
+                return the NxM dimensional cost matrix, where element (i, j) is the
+                association cost between the i-th track in the given track indices and
+                the j-th detection in the given detection indices.
+
+            Parameters
+            ----------
+            Callable[List[Track], List[Detection], List[int], List[int]) -> ndarray
+            """
             features = np.array([dets[i].feature for i in detection_indices])
             targets = np.array([tracks[i].track_id for i in track_indices])
             cost_matrix = self.metric.distance(features, targets)
@@ -111,13 +124,19 @@ class Tracker:
         # Associate confirmed tracks using appearance features.
         matches_a, unmatched_tracks_a, unmatched_detections = \
             linear_assignment.matching_cascade(
-                gated_metric, self.metric.matching_threshold, self.max_age,
-                self.tracks, detections, confirmed_tracks)
+                distance_metric   = gated_metric,
+                max_distance      = self.metric.matching_threshold,
+                cascade_depth     = self.max_age,
+                tracks            = self.tracks,
+                detections        = detections,
+                track_indices     = confirmed_tracks,
+                detection_indices = None)
 
         # Associate remaining tracks together with unconfirmed tracks using IOU.
-        iou_track_candidates = unconfirmed_tracks + [
-            k for k in unmatched_tracks_a if
-            self.tracks[k].time_since_update == 1]
+        iou_track_candidates = \
+            unconfirmed_tracks + [
+                k for k in unmatched_tracks_a if
+                self.tracks[k].time_since_update == 1]
         unmatched_tracks_a = [
             k for k in unmatched_tracks_a if
             self.tracks[k].time_since_update != 1]

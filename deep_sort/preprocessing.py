@@ -40,6 +40,7 @@ def non_max_suppression(boxes, max_bbox_overlap, scores=None):
     boxes = boxes.astype(np.float)
     pick = []
 
+    # top left, bottom right
     x1 = boxes[:, 0]
     y1 = boxes[:, 1]
     x2 = boxes[:, 2] + boxes[:, 0]
@@ -47,6 +48,7 @@ def non_max_suppression(boxes, max_bbox_overlap, scores=None):
 
     area = (x2 - x1 + 1) * (y2 - y1 + 1)
     if scores is not None:
+        # 昇順
         idxs = np.argsort(scores)
     else:
         idxs = np.argsort(y2)
@@ -56,6 +58,8 @@ def non_max_suppression(boxes, max_bbox_overlap, scores=None):
         i = idxs[last]
         pick.append(i)
 
+        # 最も内側に含まれている各座標を取得
+        # `np.maximum(x1[idxs[:last+1]])` と同じ
         xx1 = np.maximum(x1[i], x1[idxs[:last]])
         yy1 = np.maximum(y1[i], y1[idxs[:last]])
         xx2 = np.minimum(x2[i], x2[idxs[:last]])
@@ -64,10 +68,15 @@ def non_max_suppression(boxes, max_bbox_overlap, scores=None):
         w = np.maximum(0, xx2 - xx1 + 1)
         h = np.maximum(0, yy2 - yy1 + 1)
 
+        # 面積比
+        # `idxs[:last]`の各bboxで囲まれたボックスのうちの何割を`(xx1, yy1, xx2, yy2)`
+        # が占めているか. 値は全て 1 以下.
         overlap = (w * h) / area[idxs[:last]]
 
-        idxs = np.delete(
-            idxs, np.concatenate(
-                ([last], np.where(overlap > max_bbox_overlap)[0])))
+        delete_idxs = np.concatenate((
+            [last],
+            np.where(overlap > max_bbox_overlap)[0]
+        ))
+        idxs = np.delete(idxs, delete_idxs)
 
     return pick
