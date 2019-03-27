@@ -131,10 +131,10 @@ if __name__ == "__main__":
     nms_max_overlap = args.nms_max_overlap
 
     hyper_param_id = \
-        "NN-metric2{}-thresh2{}-budget2{}" \
+        "NN-metric{}-thresh{}-budget{}" \
         .format(nn_metric, nn_matching_threshold, nn_budget)
     hyper_param_id += \
-        "__TRACKER-iou2{}-age{}-ninit{}" \
+        "__TRACKER-iou{}-age{}-ninit{}" \
         .format(tracker_max_iou_distance, tracker_max_age, tracker_n_init)
     hyper_param_id += "__overlap{}".format(nms_max_overlap)
 
@@ -231,9 +231,20 @@ if __name__ == "__main__":
         # Define the codec and create VideoWriter object
         w = int(video_capture.get(3))
         h = int(video_capture.get(4))
-        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-        video_output_fname = str(write_image_dir_Path / "{}-result.avi".format(video_id))
-        video_output = cv2.VideoWriter(video_output_fname, fourcc, 15, (w, h))
+
+        if False:
+            # AVI
+            v_suffix = "avi"
+            fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+            video_output_fname = str(write_image_dir_Path / "{}-result.{}".format(video_id, v_suffix))
+            video_output = cv2.VideoWriter(video_output_fname, fourcc, 15, (w, h))
+        else:
+            # MP4
+            v_suffix = "mp4"
+            fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+            video_output_fname = str(write_image_dir_Path / "{}-result.{}".format(video_id, v_suffix))
+            video_output = cv2.VideoWriter(video_output_fname, fourcc, 15, (w, h))
+
         list_file = open('detection.txt', 'w')
         frame_index = -1 
 

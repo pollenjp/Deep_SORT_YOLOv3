@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/bash -x
+
 
 #GPU=0
 LIST_NN_METRIC="cosine euclidean"
@@ -8,10 +9,15 @@ LIST_TRACKER_MAX_IOU_DISTANCE="0.1 0.3 0.5 0.7"
 LIST_TRACKER_N_INIT="3 5 7"
 
 for NN_METRIC in ${LIST_NN_METRIC}; do
-    for TRACKER_N_INIT in ${LIST_TRACKER_N_INIT}; do
+    for NN_MATCHING_THRESHOLD in ${LIST_NN_MATCHING_THRESHOLD}; do
         for TRACKER_MAX_IOU_DISTANCE in ${LIST_TRACKER_MAX_IOU_DISTANCE}; do
             for TRACKER_MAX_AGE in ${LIST_TRACKER_MAX_AGE}; do
-                for NN_MATCHING_THRESHOLD in ${LIST_NN_MATCHING_THRESHOLD}; do
+                for TRACKER_N_INIT in ${LIST_TRACKER_N_INIT}; do
+                    printf "\e[30;102;1m NN_METRIC                 : ${NN_METRIC} \e[0m \n"
+                    printf "\e[30;102;1m NN_MATCHING_THRESHOLD     : ${NN_MATCHING_THRESHOLD} \e[0m \n"
+                    printf "\e[30;102;1m TRACKER_MAX_IOU_DISTANCE  : ${TRACKER_MAX_IOU_DISTANCE} \e[0m \n"
+                    printf "\e[30;102;1m TRACKER_MAX_AGE           : ${TRACKER_MAX_AGE} \e[0m \n"
+                    printf "\e[30;102;1m TRACKER_N_INIT            : ${TRACKER_N_INIT} \e[0m \n"
                     python3 demo2.py \
                         --video_filepath=./data/original/video-camera01/01_02_1.avi \
                         --output_dir=./output \
