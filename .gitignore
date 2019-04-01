@@ -1,5 +1,6 @@
 /output/
 /data/original
+/model_data/yolo.h5
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

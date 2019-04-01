@@ -281,6 +281,7 @@ if __name__ == "__main__":
         t1 = timeit.time.time()
 
         image = Image.fromarray(frame)
+        # x,y,w,h
         boxs = yolov3.detect_image(image)
         # print("box_num",len(boxs))
         features = encoder(frame,boxs)

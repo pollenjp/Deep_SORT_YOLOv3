@@ -21,6 +21,24 @@ test1 :
 		--tracker_n_init=3 \
 		--nms_max_overlap=1.0
 
+.PHONY : webcam
+webcam :
+	python3 camera.py \
+		--camera_num=0 \
+		--deep_sort_model_path=./model_data/mars-small128.pb \
+		--yolo_model_path=./model_data/yolo.h5 \
+		--yolo_anchors_path=./model_data/yolo_anchors.txt \
+		--yolo_classes_path=./model_data/coco_classes.txt \
+		--gpu=0 \
+		--seed=0 \
+		--nn_metric=cosine \
+		--nn_matching_threshold=0.3 \
+		--nn_budget \
+		--tracker_max_iou_distance=0.7 \
+		--tracker_max_age=30 \
+		--tracker_n_init=3 \
+		--nms_max_overlap=1.0
+
 LIST_NN_METRIC="cosine euclidean"
 LIST_NN_MATCHING_THRESHOLD="0.1 0.3 0.5 0.7 1.0"
 LIST_TRACKER_MAX_IOU_DISTANCE="0.1 0.3 0.5 0.7"
